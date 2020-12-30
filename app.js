@@ -4,9 +4,10 @@
 require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
-const ejs=require("ejs");
+const ejs = require("ejs");
 const mongoose = require("mongoose");
-const md5=require("md5")
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 
 //express and ejs setup
 const app = express();
@@ -55,28 +56,32 @@ app.post("/login", function (req, res) {
     }
     //no error
     else {
-      if (user.password === md5(req.body.password)) {
-        res.render("secrets");
-      } else {
-        res.redirect("/login");
-      }
+      bcrypt.compare(req.body.password,user.password,function(err,same){
+          if (same){
+            res.render("secrets");
+          } else{
+            res.redirect("/login");
+          }
+      });
     }
   });
 });
 
 //register
 app.post("/register", function (req, res) {
-  const newUser = new User({
-    username: req.body.username,
-    password: md5(req.body.password)
-  });
-  newUser.save(function (err) {
-    if (err) {
-      console.log(err);
-      res.redirect("/register");
-    } else {
-      res.render("secrets");
-    }
+  bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
+    const newUser = new User({
+      username: req.body.username,
+      password: hash
+    });
+    newUser.save(function (err) {
+      if (err) {
+        console.log(err);
+        res.redirect("/register");
+      } else {
+        res.render("secrets");
+      }
+    });
   });
 });
 
