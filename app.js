@@ -4,6 +4,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
+const encrypt = require("mongoose-encryption");
 
 //express and ejs setup
 const app = express();
@@ -21,6 +22,10 @@ const userSchema = new mongoose.Schema({
   username: String,
   password: String,
 });
+
+const secret = "Thisisasecretstring";
+
+userSchema.plugin(encrypt, { secret: secret, encryptedFields: ["password"] });
 
 const User = mongoose.model("user", userSchema);
 
@@ -45,23 +50,20 @@ app.get("/register", function (req, res) {
 
 //login
 app.post("/login", function (req, res) {
-  User.findOne(
-    { username: req.body.username, password: req.body.password },
-    function (err, user) {
-      if (err) {
-        console.log(err);
+  User.findOne({ username: req.body.username }, function (err, user) {
+    if (err) {
+      console.log(err);
+      res.redirect("/login");
+    }
+    //no error
+    else {
+      if (user.password === req.body.password) {
+        res.render("secrets");
+      } else {
         res.redirect("/login");
       }
-      //no error
-      else {
-        if (user) {
-          res.render("secrets");
-        } else {
-          res.redirect("/login");
-        }
-      }
     }
-  );
+  });
 });
 
 //register
