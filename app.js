@@ -21,7 +21,7 @@ app.use(express.static("public"));
 //express-session setup, cookies
 app.use(
   session({
-    secret: "Thisisasecretstring",
+    secret: process.env.SECRET,
     resave: false,
     saveUninitialized: false,
   })
