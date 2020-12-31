@@ -42,7 +42,8 @@ mongoose.connect("mongodb://localhost:27017/userDB", {
 const userSchema = new mongoose.Schema({
   username: String,
   password: String,
-  googleId:String
+  googleId: String,
+  secret: String,
 });
 
 //passport-local-mongoose
@@ -54,15 +55,15 @@ const User = mongoose.model("user", userSchema);
 passport.use(User.createStrategy());
 
 //serialize user
-passport.serializeUser(function(user, done) {
-    done(null, user.id);
+passport.serializeUser(function (user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(function (id, done) {
+  User.findById(id, function (err, user) {
+    done(err, user);
   });
-  
-  passport.deserializeUser(function(id, done) {
-    User.findById(id, function(err, user) {
-      done(err, user);
-    });
-  });
+});
 
 //google strat setup
 passport.use(
@@ -94,12 +95,14 @@ app.get(
   passport.authenticate("google", { scope: ["profile"] })
 );
 
-app.get("/auth/google/secrets", 
+app.get(
+  "/auth/google/secrets",
   passport.authenticate("google", { failureRedirect: "/login" }),
-  function(req, res) {
+  function (req, res) {
     // Successful authentication, redirect home.
     res.redirect("/secrets");
-  });
+  }
+);
 
 //login
 app.get("/login", function (req, res) {
@@ -112,16 +115,29 @@ app.get("/register", function (req, res) {
 });
 
 app.get("/secrets", function (req, res) {
-  if (req.isAuthenticated()) {
-    res.render("secrets");
-  } else {
-    res.redirect("/login");
-  }
+    User.find({"secret":{$ne:null}},function(err,foundUsers){
+        if(err){
+            console.log(err);
+            res.redirect("/")
+        } else{
+            if(foundUsers){
+                res.render("secrets",{usersWithSecrets:foundUsers})
+            }
+        }
+    })
 });
 
 app.get("/logout", function (req, res) {
   req.logout();
   res.redirect("/");
+});
+
+app.get("/submit", function (req, res) {
+  if (req.isAuthenticated()) {
+    res.render("submit");
+  } else {
+    res.redirect("/login");
+  }
 });
 
 //POST requests
@@ -161,6 +177,22 @@ app.post("/register", function (req, res) {
       }
     }
   );
+});
+
+app.post("/submit", function (req, res) {
+  const submitSecret = req.body.secret;
+  User.findById(req.user.id, function (err, foundUser) {
+    if (err) {
+      console.log(err);
+    } else {
+      if (foundUser) {
+        foundUser.secret = submitSecret;
+        foundUser.save(function () {
+          res.redirect("/secrets");
+        });
+      }
+    }
+  });
 });
 
 //listen on to port 3000
